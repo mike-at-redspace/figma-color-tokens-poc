@@ -51,10 +51,9 @@ async function updateOrCreateThemeFile(
   category,
   baseName,
   modifier,
-  hexColor,
-  isFill
+  values,
+  subDirectory = ""
 ) {
-  const subDirectory = isFill ? "colors" : "";
   const dirPath = path.join(
     BASE_PATH,
     subDirectory,
@@ -77,7 +76,7 @@ async function updateOrCreateThemeFile(
   }
 
   const key = sanitizeKey(modifier || baseName);
-  fileContent[key] = hexColor;
+  fileContent[key] = values;
 
   const fileContentString = `export default ${JSON.stringify(
     fileContent,
@@ -116,6 +115,51 @@ async function getFigmaDesignTokens() {
       const modifier = modifiers.join("_");
 
       switch (style.style_type) {
+        case "TEXT":
+          const supportedFigmaAttributes = [
+            "fontFamily",
+            "fontSize",
+            "letterSpacing",
+            "lineHeight",
+            "paragraphSpacing",
+            "textCase",
+            "textDecoration",
+            "textAlign",
+            "verticalAlign",
+          ];
+
+          const textStyles = { ...styleData.style };
+
+          // Filter out unsupported attributes and convert values to lowercase
+          Object.keys(textStyles).forEach((key) => {
+            if (!supportedFigmaAttributes.includes(key) || !textStyles[key]) {
+              delete textStyles[key];
+            }
+          });
+
+          // Convert pixel values to more usable units (rem, em)
+          if (textStyles.fontSize) {
+            textStyles.fontSize = `${Math.round(textStyles.fontSize / 10)}rem`;
+          }
+          if (textStyles.letterSpacing) {
+            textStyles.letterSpacing = `${Math.round(
+              textStyles.letterSpacing / 10
+            )}em`;
+          }
+          if (textStyles.lineHeight) {
+            textStyles.lineHeight = `${Math.round(
+              textStyles.lineHeight / 10
+            )}em`;
+          }
+
+          // Update or create the theme file with the processed text styles
+          await updateOrCreateThemeFile(
+            category,
+            baseName,
+            modifier,
+            textStyles,
+            "fonts"
+          );
         case "FILL":
           if (styleData.fills?.[0]?.color) {
             const { color, opacity } = styleData.fills[0];
@@ -125,7 +169,7 @@ async function getFigmaDesignTokens() {
               baseName,
               modifier,
               hexColor,
-              true
+              "colors"
             );
           }
           break;
@@ -137,7 +181,7 @@ async function getFigmaDesignTokens() {
               const shadowColor = `rgba(${Math.round(
                 color.r * 255
               )}, ${Math.round(color.g * 255)}, ${Math.round(color.b * 255)}, ${
-                Math.round(color.a, 3) || 1
+                Math.round(color.a * 100) / 100 || 1
               })`;
               const offsetX = offset.x || 0;
               const offsetY = offset.y || 0;
@@ -147,9 +191,9 @@ async function getFigmaDesignTokens() {
                 category,
                 baseName,
                 modifier,
-                boxShadow,
-                false
+                boxShadow
               );
+              break;
           }
           break;
         default:
