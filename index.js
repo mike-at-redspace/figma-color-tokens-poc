@@ -116,43 +116,23 @@ async function getFigmaDesignTokens() {
 
       switch (style.style_type) {
         case "TEXT":
-          const supportedFigmaAttributes = [
-            "fontFamily",
-            "fontSize",
-            "letterSpacing",
-            "lineHeight",
-            "paragraphSpacing",
-            "textCase",
-            "textDecoration",
-            "textAlign",
-            "verticalAlign",
-          ];
+          const {
+            fontFamily,
+            fontSize,
+            fontWeight,
+            lineHeightPercentFontSize,
+            transform,
+          } = styleData.style;
+          const textStyles = {
+            fontFamily,
+            fontSize: `${fontSize / 10}rem`,
+            fontWeight,
+            lineHeight: lineHeightPercentFontSize
+              ? `${lineHeightPercentFontSize}%`
+              : "normal",
+            transform: transform ? transform.toLowerCase() : "none",
+          };
 
-          const textStyles = { ...styleData.style };
-
-          // Filter out unsupported attributes and convert values to lowercase
-          Object.keys(textStyles).forEach((key) => {
-            if (!supportedFigmaAttributes.includes(key) || !textStyles[key]) {
-              delete textStyles[key];
-            }
-          });
-
-          // Convert pixel values to more usable units (rem, em)
-          if (textStyles.fontSize) {
-            textStyles.fontSize = `${Math.round(textStyles.fontSize / 10)}rem`;
-          }
-          if (textStyles.letterSpacing) {
-            textStyles.letterSpacing = `${Math.round(
-              textStyles.letterSpacing / 10
-            )}em`;
-          }
-          if (textStyles.lineHeight) {
-            textStyles.lineHeight = `${Math.round(
-              textStyles.lineHeight / 10
-            )}em`;
-          }
-
-          // Update or create the theme file with the processed text styles
           await updateOrCreateThemeFile(
             category,
             baseName,
@@ -161,7 +141,15 @@ async function getFigmaDesignTokens() {
             "fonts"
           );
         case "FILL":
-          if (styleData.fills?.[0]?.color) {
+          const ignoreFonts = [
+            "Body",
+            "Body Variations",
+            "Headings L",
+            "Headings M",
+            "Headings S",
+            "Inline",
+          ];
+          if (styleData.fills?.[0]?.color && !ignoreFonts.includes(category)) {
             const { color, opacity } = styleData.fills[0];
             const hexColor = rgbaToCssValue(color, opacity);
             await updateOrCreateThemeFile(
