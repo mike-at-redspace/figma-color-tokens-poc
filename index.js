@@ -7,12 +7,27 @@ const FIGMA_FILE_KEY = process.env.FIGMA_FILE_KEY;
 const FIGMA_ACCESS_TOKEN = process.env.FIGMA_ACCESS_TOKEN;
 const BASE_PATH = "./theme/colors";
 
-function rgbaToHex({ r, g, b, a }) {
-  const toHex = (val) =>
-    Math.round(val * 255)
-      .toString(16)
-      .padStart(2, "0");
-  return `#${toHex(r)}${toHex(g)}${toHex(b)}${a !== undefined ? toHex(a) : ""}`;
+function rgbaToCssValue(colors, opacity = 1) {
+  const { r = 0, g = 0, b = 0 } = colors || {};
+
+  const red = Math.round(r * 255);
+  const green = Math.round(g * 255);
+  const blue = Math.round(b * 255);
+
+  const validOpacity =
+    typeof opacity === "number" &&
+    !isNaN(opacity) &&
+    opacity >= 0 &&
+    opacity <= 1
+      ? opacity
+      : 1;
+
+  if (validOpacity < 1) {
+    return `rgba(${red}, ${green}, ${blue}, ${validOpacity})`;
+  } else {
+    const toHex = (val) => Math.round(val).toString(16).padStart(2, "0");
+    return `#${toHex(red)}${toHex(green)}${toHex(blue)}`;
+  }
 }
 
 function ensureDirectoryExistence(filePath) {
@@ -51,8 +66,8 @@ async function getFigmaDesignTokens() {
       if (style.style_type === "FILL") {
         const styleData = await getStyleById(style.node_id);
         if (styleData.fills?.[0].color) {
-          const color = styleData.fills[0].color;
-          const hexColor = rgbaToHex(color);
+          const { color, opacity } = styleData.fills[0];
+          const hexColor = rgbaToCssValue(color, opacity);
 
           const parts = style.name.split("/");
           const category = parts.length > 1 ? parts[0] : "uncategorized";
