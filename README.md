@@ -23,13 +23,21 @@ This repo demonstrates how to fetch design tokens, specifically colors, from a F
     yarn
    ```
 
-3. Set your Figma Access Token:
+3. Set your Figma Access Token & File ID:
 
-- Open index.js and replace `FIGMA_ACCESS_TOKEN` with your Figma API access token
+   - Create a `.env` file in the root of the project.
+   - Add the following content to the `.env` file:
 
-4. Set your Figma File Key:
+     ```env
+     FIGMA_ACCESS_TOKEN=<your-figma-access-token>
+     FIGMA_FILE_ID=<your-figma-file-id>
+     ```
 
-- Open index.js and replace `FIGMA_FILE_KEY` with your Figma file ID
+   Replace `<your-figma-access-token>` with your Figma access token and `<your-figma-file-id>` with the Figma file ID you want to fetch colors from.
+
+   To get the Figma file ID, open the Figma file in the browser and copy the file ID from the URL. The file ID is the last part of the URL after the `/file/` path.
+
+   For example, if the Figma file URL is `https://www.figma.com/file/abc123/My-Design-File`, the file ID is `abc123`.
 
 ## Usage
 

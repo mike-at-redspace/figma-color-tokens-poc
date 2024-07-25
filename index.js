@@ -1,9 +1,11 @@
-const axios = require("axios");
-const fs = require("fs");
-const path = require("path");
+import chalk from "chalk";
+import axios from "axios";
+import fs from "fs";
+import path from "path";
 
-const FIGMA_FILE_KEY = "gbbtofXtzmtsamECuD1ZqR";
-const FIGMA_ACCESS_TOKEN = "figd_YOUR_FIGMA_ACCESS_TOKEN";
+const FIGMA_FILE_KEY = process.env.FIGMA_FILE_KEY;
+const FIGMA_ACCESS_TOKEN = process.env.FIGMA_ACCESS_TOKEN;
+const BASE_PATH = "./theme/colors";
 
 function rgbaToHex({ r, g, b, a }) {
   const toHex = (val) =>
@@ -27,7 +29,7 @@ function sanitizeFileName(name) {
 }
 
 function sanitizeKey(key) {
-  return key.replace(/[^a-zA-Z0-9_]/g, "_");
+  return key.replace(/[^a-zA-Z0-9]/g, "-").toLowerCase();
 }
 
 async function getFigmaDesignTokens() {
@@ -59,7 +61,7 @@ async function getFigmaDesignTokens() {
           const [baseName, ...modifiers] = name.split("-");
           const modifier = modifiers.join("_");
 
-          const dirPath = path.join("./theme/", sanitizeFileName(category));
+          const dirPath = path.join(BASE_PATH, sanitizeFileName(category));
           const filePath = path.join(
             dirPath,
             `${sanitizeFileName(baseName)}.js`
@@ -69,13 +71,21 @@ async function getFigmaDesignTokens() {
 
           let fileContent = {};
           if (fs.existsSync(filePath)) {
-            fileContent = require(path.resolve(filePath));
+            console.log(
+              chalk.magentaBright(`Updating ${chalk.white.bold(filePath)}...`)
+            );
+            const data = await import(path.resolve(filePath));
+            fileContent = data.default;
+          } else {
+            console.log(
+              chalk.greenBright(`Creating ${chalk.white.bold(filePath)}...`)
+            );
           }
 
           const key = sanitizeKey(modifier || baseName);
-          fileContent[key] = { color: hexColor };
+          fileContent[key] = hexColor;
 
-          const fileContentString = `module.exports = ${JSON.stringify(
+          const fileContentString = `export default ${JSON.stringify(
             fileContent,
             null,
             2
