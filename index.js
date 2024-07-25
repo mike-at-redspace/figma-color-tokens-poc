@@ -5,7 +5,7 @@ import path from "path";
 
 const FIGMA_FILE_KEY = process.env.FIGMA_FILE_KEY;
 const FIGMA_ACCESS_TOKEN = process.env.FIGMA_ACCESS_TOKEN;
-const BASE_PATH = "./theme/colors";
+const BASE_PATH = "./theme";
 
 function rgbaToCssValue(colors, opacity = 1) {
   const { r = 0, g = 0, b = 0 } = colors || {};
@@ -47,6 +47,47 @@ function sanitizeKey(key) {
   return key.replace(/[^a-zA-Z0-9]/g, "-").toLowerCase();
 }
 
+async function updateOrCreateThemeFile(
+  category,
+  baseName,
+  modifier,
+  hexColor,
+  isFill
+) {
+  const subDirectory = isFill ? "colors" : "";
+  const dirPath = path.join(
+    BASE_PATH,
+    subDirectory,
+    sanitizeFileName(category)
+  );
+  const fileName = `${sanitizeFileName(baseName)}.js`;
+  const filePath = path.join(dirPath, fileName);
+
+  ensureDirectoryExistence(filePath);
+
+  let fileContent = {};
+  if (fs.existsSync(filePath)) {
+    console.log(
+      chalk.magentaBright(`Updating ${chalk.white.bold(filePath)}...`)
+    );
+    const data = await import(path.resolve(filePath));
+    fileContent = data.default;
+  } else {
+    console.log(chalk.greenBright(`Creating ${chalk.white.bold(filePath)}...`));
+  }
+
+  const key = sanitizeKey(modifier || baseName);
+  fileContent[key] = hexColor;
+
+  const fileContentString = `export default ${JSON.stringify(
+    fileContent,
+    null,
+    2
+  )};\n`;
+
+  fs.writeFileSync(filePath, fileContentString);
+}
+
 async function getFigmaDesignTokens() {
   try {
     const {
@@ -63,51 +104,56 @@ async function getFigmaDesignTokens() {
     );
 
     for (const style of styles) {
-      if (style.style_type === "FILL") {
-        const styleData = await getStyleById(style.node_id);
-        if (styleData.fills?.[0].color) {
-          const { color, opacity } = styleData.fills[0];
-          const hexColor = rgbaToCssValue(color, opacity);
+      const styleData = await getStyleById(style.node_id);
+      if (!styleData) {
+        continue;
+      }
 
-          const parts = style.name.split("/");
-          const category = parts.length > 1 ? parts[0] : "uncategorized";
-          const name = parts[parts.length - 1];
+      const parts = style.name.split("/");
+      const category = parts.length > 1 ? parts[0] : "uncategorized";
+      const name = parts[parts.length - 1];
+      const [baseName, ...modifiers] = name.split("-");
+      const modifier = modifiers.join("_");
 
-          const [baseName, ...modifiers] = name.split("-");
-          const modifier = modifiers.join("_");
-
-          const dirPath = path.join(BASE_PATH, sanitizeFileName(category));
-          const filePath = path.join(
-            dirPath,
-            `${sanitizeFileName(baseName)}.js`
-          );
-
-          ensureDirectoryExistence(filePath);
-
-          let fileContent = {};
-          if (fs.existsSync(filePath)) {
-            console.log(
-              chalk.magentaBright(`Updating ${chalk.white.bold(filePath)}...`)
-            );
-            const data = await import(path.resolve(filePath));
-            fileContent = data.default;
-          } else {
-            console.log(
-              chalk.greenBright(`Creating ${chalk.white.bold(filePath)}...`)
+      switch (style.style_type) {
+        case "FILL":
+          if (styleData.fills?.[0]?.color) {
+            const { color, opacity } = styleData.fills[0];
+            const hexColor = rgbaToCssValue(color, opacity);
+            await updateOrCreateThemeFile(
+              category,
+              baseName,
+              modifier,
+              hexColor,
+              true
             );
           }
-
-          const key = sanitizeKey(modifier || baseName);
-          fileContent[key] = hexColor;
-
-          const fileContentString = `export default ${JSON.stringify(
-            fileContent,
-            null,
-            2
-          )};\n`;
-
-          fs.writeFileSync(filePath, fileContentString);
-        }
+          break;
+        case "EFFECT":
+          const effect = styleData.effects[0];
+          switch (effect.type) {
+            case "DROP_SHADOW":
+              const { color, offset, radius } = effect;
+              const shadowColor = `rgba(${Math.round(
+                color.r * 255
+              )}, ${Math.round(color.g * 255)}, ${Math.round(color.b * 255)}, ${
+                Math.round(color.a, 3) || 1
+              })`;
+              const offsetX = offset.x || 0;
+              const offsetY = offset.y || 0;
+              const blurRadius = radius || 0;
+              const boxShadow = `${offsetX}px ${offsetY}px ${blurRadius}px ${shadowColor}`;
+              await updateOrCreateThemeFile(
+                category,
+                baseName,
+                modifier,
+                boxShadow,
+                false
+              );
+          }
+          break;
+        default:
+          break;
       }
     }
 
