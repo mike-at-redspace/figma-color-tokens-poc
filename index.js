@@ -14,11 +14,8 @@ function rgbaToCssValue(colors, opacity = 1) {
   const green = Math.round(g * 255);
   const blue = Math.round(b * 255);
 
-  const validOpacity = !isNaN(opacity) &&
-    opacity >= 0 &&
-    opacity <= 1
-      ? opacity
-      : 1;
+  const validOpacity =
+    !isNaN(opacity) || (opacity >= 0 && opacity <= 1) ? opacity : 1;
 
   if (validOpacity < 1) {
     return `rgba(${red}, ${green}, ${blue}, ${validOpacity})`;
