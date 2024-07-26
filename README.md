@@ -44,6 +44,5 @@ This repo demonstrates how to fetch design tokens, specifically colors, from a F
 To run the script and generate the theme files, use the following command:
 
 ```bash
-Copy code
 yarn start
 ```
